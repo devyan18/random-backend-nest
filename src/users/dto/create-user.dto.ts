@@ -4,11 +4,11 @@ import { User } from '../entities/user.entity';
 export class CreateUserDto implements User {
   @IsNotEmpty()
   @Length(3, 50)
-  firstName: string;
+  first_name: string;
 
   @IsNotEmpty()
   @Length(3, 50)
-  lastName: string;
+  last_name: string;
 
   @IsNotEmpty()
   @IsEmail()

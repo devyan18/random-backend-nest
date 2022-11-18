@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserDocument } from './schemas/user.schema';
 import { compare } from 'bcrypt';
+import { Presense } from 'src/assists/entities/assist.entity';
 
 @Injectable()
 export class UsersService {
@@ -33,8 +34,8 @@ export class UsersService {
     return `This action removes a #${userId} user`;
   }
 
-  async validateUserPassword(user: User, password: string): Promise<boolean> {
-    return await compare(password, user.password);
+  async validateUserPassword(hash: string, password: string): Promise<boolean> {
+    return await compare(password, hash);
   }
 
   async findByCredentials(loginUserDto: LoginUserDto) {
@@ -45,12 +46,64 @@ export class UsersService {
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
 
-    const isPasswordValid = await this.validateUserPassword(user, password);
+    const isPasswordValid = await this.validateUserPassword(
+      user.password,
+      password,
+    );
 
     if (!isPasswordValid) {
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
 
     return user;
+  }
+
+  async addStudyingCareer(userId: string, careerId: string) {
+    const user = await this.userModel.findOne({ _id: userId });
+    user.studying_careers.push({ career: careerId, inassistences: 0 });
+    return await user.save();
+  }
+
+  async isAdmin(userId: string) {
+    const user = await this.userModel.findOne({ _id: userId });
+    return user.isAdmin;
+  }
+
+  async addInassitence(userId: string, careerId: string) {
+    const user = await this.userModel.findOne({ _id: userId });
+    const career = user.studying_careers.find(
+      (career) => career.career.toString() === careerId,
+    );
+    career.inassistences += 1;
+    return await user.save();
+  }
+
+  async addInsistences(presenses: Presense[], careerId: string) {
+    for (const presence of presenses) {
+      const { user, is_present } = presence;
+
+      if (is_present) {
+        continue;
+      }
+
+      await this.addInassitence(user, careerId);
+    }
+  }
+
+  async existUser(userId: string) {
+    try {
+      const user = await this.userModel.findOne({ _id: userId });
+      return !!user;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async addTeacherToUser(userId: string, subjectId: string) {
+    return await this.userModel.findOneAndUpdate(
+      { _id: userId },
+      { $push: { teachers: subjectId } },
+      { new: true },
+    );
   }
 }

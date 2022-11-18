@@ -6,41 +6,83 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
   Request,
+  UseGuards,
+  HttpException,
 } from '@nestjs/common';
-import { SubjectsService } from './subjects.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { SubjectsService } from './subjects.service';
 import { JwtAuthGuard } from 'src/auth/wt-auth.guard';
+import { UsersService } from 'src/users/users.service';
+import { IsAdminGuard } from 'src/auth/is-admin.guard';
 
-@UseGuards(JwtAuthGuard)
 @Controller('subjects')
 export class SubjectsController {
-  constructor(private readonly subjectsService: SubjectsService) {}
+  constructor(
+    private readonly subjectsService: SubjectsService,
+    private usersService: UsersService,
+  ) {}
 
+  @UseGuards(IsAdminGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createSubjectDto: CreateSubjectDto) {
+  async create(@Body() createSubjectDto: CreateSubjectDto, @Request() req) {
+    const isAdmin = await this.usersService.isAdmin(req.user._id);
+
+    if (!isAdmin) {
+      throw new HttpException(
+        'You are not authorized to update this subject',
+        401,
+      );
+    }
+
     return this.subjectsService.create(createSubjectDto);
   }
 
   @Get()
-  findAll(@Request() req) {
-    return req.user;
+  findAll() {
+    return this.subjectsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.subjectsService.findOne(+id);
+  @Get(':subjectId')
+  findOne(@Param('subjectId') subjectId: string) {
+    return this.subjectsService.findOne(subjectId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSubjectDto: UpdateSubjectDto) {
-    return this.subjectsService.update(+id, updateSubjectDto);
+  @UseGuards(IsAdminGuard)
+  @UseGuards(JwtAuthGuard)
+  @Patch(':subjectId')
+  async update(
+    @Param('subjectId') subjectId: string,
+    @Body() updateSubjectDto: UpdateSubjectDto,
+    @Request() req,
+  ) {
+    const isAdmin = await this.usersService.isAdmin(req.user._id);
+
+    if (!isAdmin) {
+      throw new HttpException(
+        'You are not authorized to update this subject',
+        401,
+      );
+    }
+
+    return this.subjectsService.update(subjectId, updateSubjectDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.subjectsService.remove(+id);
+  @UseGuards(IsAdminGuard)
+  @UseGuards(JwtAuthGuard)
+  @Delete(':subjectId')
+  async remove(@Param('subjectId') subjectId: string, @Request() req) {
+    const isAdmin = await this.usersService.isAdmin(req.user._id);
+
+    if (!isAdmin) {
+      throw new HttpException(
+        'You are not authorized to update this subject',
+        401,
+      );
+    }
+
+    return this.subjectsService.remove(subjectId);
   }
 }

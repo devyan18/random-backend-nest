@@ -1,26 +1,51 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { UsersService } from 'src/users/users.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { Subject, SubjectDocument } from './schemas/subject.schema';
 
 @Injectable()
 export class SubjectsService {
-  create(createSubjectDto: CreateSubjectDto) {
-    return 'This action adds a new subject';
+  constructor(
+    @InjectModel(Subject.name) private subjectModel: Model<SubjectDocument>,
+    private readonly userService: UsersService,
+  ) {}
+
+  async create(createSubjectDto: CreateSubjectDto) {
+    return await this.subjectModel.create(createSubjectDto);
   }
 
-  findAll() {
-    return `This action returns all subjects`;
+  async findAll() {
+    return await this.subjectModel.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} subject`;
+  async findOne(subjectId: string) {
+    return await this.subjectModel.findOne({ _id: subjectId });
   }
 
-  update(id: number, updateSubjectDto: UpdateSubjectDto) {
-    return `This action updates a #${id} subject`;
+  async update(subjectId: string, updateSubjectDto: UpdateSubjectDto) {
+    return await this.subjectModel.findOneAndUpdate(
+      { _id: subjectId },
+      updateSubjectDto,
+      { new: true },
+    );
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} subject`;
+  async remove(subjectId: string) {
+    return await this.subjectModel.findOneAndDelete({ _id: subjectId });
+  }
+
+  async addTeacherToCareer(subjectId: string, teacherId: string) {
+    const subjectWithNewTeacher = await this.subjectModel.findOneAndUpdate(
+      { _id: subjectId },
+      { $push: { teachers: teacherId } },
+      { new: true },
+    );
+
+    await this.userService.addTeacherToUser(teacherId, subjectId);
+
+    return subjectWithNewTeacher;
   }
 }
